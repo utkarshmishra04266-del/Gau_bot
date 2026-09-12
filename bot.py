@@ -1,40 +1,43 @@
 import os
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-import csv, random
-from datetime import datetime
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-TOKEN = os.environ.get("BOT_TOKEN")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_ID = 6380152779
-PASSKEY = "GAO MATA KI JAI"
-unlocked = set()
 
-def save_report(rid, uid, username, rtype, text):
-    file_exists = os.path.isfile('reports.csv')
-    with open('reports.csv', 'a', newline='', encoding='utf-8') as f:
-        w = csv.writer(f)
-        if not file_exists:
-            w.writerow(['ReportID', 'Date', 'UserID', 'Username', 'Type', 'Text'])
-        w.writerow([rid, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), uid, username, rtype, text])
+def start(update: Update, context: CallbackContext):
+    update.message.reply_text("GAU MATA KI JAI 🙏\nAb aap photo/video/text bhejo, report ban jayegi.")
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Jai Gau Mata! 🙏\nPasskey bhejo: GAO MATA KI JAI")
+def handle_all(update: Update, context: CallbackContext):
+    user = update.effective_user
+    msg = f"🚨 New Report\nFrom: {user.first_name} (@{user.username})\nID: {user.id}\n\n"
+    
+    if update.message.text:
+        msg += f"Text: {update.message.text}"
+        context.bot.send_message(chat_id=ADMIN_ID, text=msg)
+    elif update.message.photo:
+        msg += "Type: Photo"
+        context.bot.send_message(chat_id=ADMIN_ID, text=msg)
+        context.bot.forward_message(chat_id=ADMIN_ID, from_chat_id=update.effective_chat.id, message_id=update.message.message_id)
+    elif update.message.video:
+        msg += "Type: Video"
+        context.bot.send_message(chat_id=ADMIN_ID, text=msg)
+        context.bot.forward_message(chat_id=ADMIN_ID, from_chat_id=update.effective_chat.id, message_id=update.message.message_id)
+    else:
+        context.bot.forward_message(chat_id=ADMIN_ID, from_chat_id=update.effective_chat.id, message_id=update.message.message_id)
 
-async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    txt = (update.message.text or "").strip()
-    uid = update.effective_user.id
-    username = update.effective_user.username or "NoUsername"
-    if txt.upper() == PASSKEY:
-        unlocked.add(uid)
-        await update.message.reply_text("✅ Unlocked! Ab report bhejo")
-        return
-    if uid not in unlocked:
-        await update.message.reply_text("❌ Pehle passkey bhejo")
-        return
-    report_id = random.randint(1000, 9999)
-    rtype = "TEXT"
-    if update.message.photo: rtype = "PHOTO"
-    elif update.message.video: rtype = "VIDEO"
+    update.message.reply_text("✅ Report bhej di gayi hai. Gau Mata ki Jai!")
+
+def main():
+    updater = Updater(BOT_TOKEN, use_context=True)
+    dp = updater.dispatcher
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(MessageHandler(Filters.all & ~Filters.command, handle_all))
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == '__main__':
+    main()    elif update.message.video: rtype = "VIDEO"
     save_report(report_id, uid, username, rtype, txt)
     caption = f"🚨 NEW REPORT #{report_id}\nFrom: @{username} ({uid})\nType: {rtype}\nDetails: {txt}"
     try:
